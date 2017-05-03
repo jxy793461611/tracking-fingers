@@ -1,0 +1,242 @@
+
+#include <iostream>
+#include<math.h>
+#include<fstream>
+#include <cstring>
+#include "Leap.h"
+#include<opencv2\highgui.hpp>
+#include<opencv2\imgproc\imgproc.hpp>
+#include<opencv2\core\core.hpp>
+#include<windows.h>
+#include<stdlib.h>
+
+using namespace cv;
+using namespace Leap;
+using namespace std;
+
+int screenWidth, screenHeight;
+int finger_x[6];
+int finger_y[6];
+class SampleListener : public Listener {
+public:
+	virtual void onInit(const Controller&);
+	virtual void onConnect(const Controller&);
+	virtual void onDisconnect(const Controller&);
+	virtual void onExit(const Controller&);
+	virtual void onFrame(const Controller&);
+	virtual void onFocusGained(const Controller&);
+	virtual void onFocusLost(const Controller&);
+	virtual void screenConvert0(const Controller&, Finger finger);
+	virtual void  drawPicture(float x, float y);
+public:	
+	Vector palm;
+	float x, y, z;
+	int	fingerNumbers;
+	float xx, yy, zz;
+};
+//const int fingerNumbers[] = { 1, 2, 3, 4, 5 };
+const std::string fingerNames[] = { "Thumb", "Index", "Middle", "Ring", "Pinky" };
+const std::string boneNames[] = { "Metacarpal", "Proximal", "Middle", "Distal" };
+
+void SampleListener::onInit(const Controller& controller) {
+	std::cout << "Initialized" << std::endl;
+	HDC hdc = GetDC(NULL);
+	screenHeight = ::GetDeviceCaps(hdc, VERTRES);
+	screenWidth = ::GetDeviceCaps(hdc, HORZRES);
+	ReleaseDC(NULL, hdc);
+}
+
+void SampleListener::onConnect(const Controller& controller) {
+	std::cout << "Connected" << std::endl;
+}
+
+void SampleListener::onDisconnect(const Controller& controller) {
+	// Note: not dispatched when running in a debugger.
+	std::cout << "Disconnected" << std::endl;
+}
+void SampleListener::onFocusGained(const Controller& controller) {
+	std::cout << "Focus Gained" << std::endl;
+}
+
+void SampleListener::onFocusLost(const Controller& controller) {
+	std::cout << "Focus Lost" << std::endl;
+}
+
+void SampleListener::onExit(const Controller& controller) {
+	std::cout << "Exited" << std::endl;
+}
+void SampleListener::drawPicture(float x, float y){
+	//圆心  
+	Point center;
+	//半径  
+	int r = 20;
+	//承载图像  
+	Mat picture(1500, 1500, CV_8UC3, Scalar(255, 255, 255));
+	center = Point(x, y);//
+	circle(picture, center, r, Scalar(255, 0, 0));
+	//circle(picture, center1, r1, Scalar(255, 0, 0));
+
+	imshow("控制画图", picture);
+	waitKey(30);
+}
+void SampleListener::screenConvert0(const Controller&controller, Finger finger){
+	Finger finger0 = finger;
+
+	Leap::Vector stabilizedPosition = finger.stabilizedTipPosition();
+	Leap::InteractionBox iBox = controller.frame().interactionBox();
+	Leap::Vector normalizedPosition = iBox.normalizePoint(stabilizedPosition);
+	x = normalizedPosition.x*screenWidth;
+	y = screenHeight - normalizedPosition.y*screenHeight;
+	z = normalizedPosition.z;
+	if (finger0.type() == 0){
+		finger_x[0] = x;
+		finger_y[0] = y;
+		
+	}
+	else if (finger0.type() == 1){
+		finger_x[1] = x;
+		finger_y[1] = y;
+		
+	}
+	else if (finger0.type() == 2){
+		finger_x[2] = x;
+		finger_y[2] = y;
+		
+	}
+	else if (finger0.type() == 3){
+		finger_x[3] = x;
+		finger_y[3] = y;
+		
+		
+	}
+	else if (finger0.type() == 4){
+		finger_x[4]=x;
+		finger_y[4]=y;
+		
+	}
+}
+
+
+void SampleListener::onFrame(const Controller& controller) {
+	// Get the most recent frame and report some basic information
+	const Frame frame = controller.frame();
+	std::cout << "Frame id: " << frame.id()<<std::endl;
+ fingerNumbers = frame.fingers().extended().count();
+	HandList hands = frame.hands();
+	for (HandList::const_iterator hl = hands.begin(); hl != hands.end(); ++hl) {
+		// Get the first hand
+		const Hand hand = *hl;
+		std::string handType = hand.isLeft() ? "Left hand" : "Right hand";
+	    palm = hand.palmPosition();
+		Leap::Vector stabilizedPosition = hand.palmPosition();
+		Leap::InteractionBox iBox = controller.frame().interactionBox();
+		Leap::Vector normalizedPosition = iBox.normalizePoint(stabilizedPosition);
+		finger_x[5] = normalizedPosition.x*(screenWidth);
+		finger_y[5] = screenHeight - normalizedPosition.y*(screenHeight);
+		zz = normalizedPosition.z;
+		// Get finger bones
+		/*for (int b = 0; b < 4; ++b) {
+		Bone::Type boneType = static_cast<Bone::Type>(b);
+		Bone bone = finger.bone(boneType);
+
+		std::cout << std::string(6, ' ') <<  boneNames[boneType]
+		<< " bone, start: " << bone.prevJoint()
+		<< ", end: " << bone.nextJoint()
+		<< ", direction: " << bone.direction() << std::endl;
+		*/
+		// Get fingers
+		Leap::FingerList fingers = frame.hands()[0].fingers();
+		std::cout << "finger count=" << fingers.count() << std::endl;
+		std::cout << "extended finger count=" << fingerNumbers << std::endl;
+		float distance3w = sqrt(pow(frame.fingers()[1].tipPosition().z - frame.fingers()[0].tipPosition().z, 2) + pow(frame.fingers()[1].tipPosition().x - frame.fingers()[0].tipPosition().x, 2) + pow(frame.fingers()[1].tipPosition().y - frame.fingers()[0].tipPosition().y, 2));
+
+		for(int i = 0; i < fingers.count(); i++ ){
+			screenConvert0(controller, fingers[i]);
+			   
+				if (frame.fingers()[i].type() == 1 && fingerNumbers == 1 ){
+					cout << "one" << endl;
+					Sleep(500);
+				}
+				if ((frame.fingers().extended()[i].type() == 1 && fingerNumbers == 2 && frame.fingers().extended()[i + 1].type() == 2)){
+					cout << "two" << endl;
+					Sleep(500);
+				}
+				if ((frame.fingers().extended()[i].type() == 1 && fingerNumbers == 3 && frame.fingers().extended()[i + 1].type() == 2 && frame.fingers().extended()[i + 2].type() == 3)||(frame.fingers().extended()[i].type() == 2&& fingerNumbers == 3 && frame.fingers().extended()[i + 1].type() == 3 && frame.fingers().extended()[i + 2].type() == 4)){
+					cout << "three" << endl;
+					Sleep(500);
+				}
+				if (frame.fingers().extended()[i].type() == 1 && fingerNumbers == 4 && frame.fingers().extended()[i + 1].type() == 2 && frame.fingers().extended()[i + 2].type() == 3 && frame.fingers().extended()[i + 3].type() == 4){
+					cout << "four" << endl;
+					Sleep(500);
+				}
+		
+				if (frame.fingers().extended()[i].type() == 4 && fingerNumbers == 2 && frame.fingers().extended()[i + 1].type() == 0){
+					cout << "six" << endl;
+					Sleep(500);
+				}
+				if (frame.fingers().extended()[i].type() == 0 && fingerNumbers == 2 && frame.fingers().extended()[i + 1].type() == 1){
+					cout << "eight" << endl;
+					Sleep(500);
+				}
+		}
+		if (fingerNumbers == 0 && distance3w>30){
+			cout << "nine" << endl;
+			Sleep(500);
+		}
+		if (fingerNumbers == 0 && distance3w<20){
+			cout << "seven" << endl;
+			Sleep(500);
+		}
+		if (fingerNumbers == 5){
+			cout << "five" << endl;
+			Sleep(500);
+		}
+
+		if (!frame.hands().isEmpty()) {
+			std::cout << std::endl;
+		}
+	}
+	//Sleep(1000);
+}
+
+
+
+int main(int argc, char** argv) {
+	// Create a sample listener and controller
+	SampleListener listener;
+	Controller controller;
+	// Have the sample listener receive events from the controller
+	controller.addListener(listener);
+	if (argc > 1 && strcmp(argv[1], "--bg") == 0)
+		controller.setPolicy(Leap::Controller::POLICY_BACKGROUND_FRAMES);
+
+	//controller.setPolicy(Leap::Controller::POLICY_ALLOW_PAUSE_RESUME);
+	
+	// Keep this process running until Enter is pressed
+	std::cout << "Press Enter to quit, or enter 'p' to pause or unpause the service..." << std::endl;
+
+	while (true){
+		Point center[10];
+		int r=20;
+		Mat picture(screenHeight, screenWidth, CV_8UC3, Scalar(255, 255, 255));
+		for (int i = 0; i <=5; i++){
+			if (i != 5){
+				center[i] = Point(finger_x[i], finger_y[i]);
+			    circle(picture, center[i], r, Scalar(0, 0, 0));
+			}
+		
+			if (i == 5){
+				r = 30;
+				center[i] = Point(finger_x[i], finger_y[i]);
+				circle(picture, center[5], r, Scalar(0, 0, 255));
+			}
+		}
+		imshow("控制画图", picture);
+		waitKey(30);
+	}
+	// Remove the sample listener when done
+	controller.removeListener(listener);
+
+	return 0;
+}
+
